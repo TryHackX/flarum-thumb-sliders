@@ -1,6 +1,7 @@
 # Thumb Sliders for Flarum
 
 A Flarum extension that displays an animated thumbnail image slider on the left side of each discussion in the discussion list. Images are automatically extracted from the first post content.
+![Preview Thumb Sliders](assets/preview.png)
 
 ## Features
 

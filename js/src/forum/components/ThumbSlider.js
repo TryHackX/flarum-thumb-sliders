@@ -29,7 +29,7 @@ export default class ThumbSlider extends Component {
     const imageCount = this.images.length;
 
     if (imageCount === 0) {
-      return null;
+      return this.renderFallback(sliderWidth);
     }
 
     return (
@@ -48,6 +48,37 @@ export default class ThumbSlider extends Component {
     );
   }
 
+  renderFallback(sliderWidth) {
+    const mode = this.attrs.fallbackMode;
+    const url = this.attrs.fallbackUrl;
+
+    if (mode === 'custom' && url) {
+      return (
+        <div className="ThumbSlider ThumbSlider--fallback ThumbSlider--fallback-custom" style={{ width: sliderWidth + 'px' }}>
+          <div className="ThumbSlider__track">
+            <div className="ThumbSlider__item ThumbSlider__item--active">
+              <img className="ThumbSlider__img" src={url} alt="" decoding="async" />
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    if (mode === 'default') {
+      return (
+        <div className="ThumbSlider ThumbSlider--fallback ThumbSlider--fallback-default" style={{ width: sliderWidth + 'px' }}>
+          <div className="ThumbSlider__track">
+            <div className="ThumbSlider__item ThumbSlider__item--active">
+              <div className="ThumbSlider__placeholder" aria-hidden="true" />
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    return null;
+  }
+
   oncreate(vnode) {
     super.oncreate(vnode);
     this.dom = vnode.dom;
@@ -59,7 +90,11 @@ export default class ThumbSlider extends Component {
       contentEl.classList.add('has-ThumbSlider');
     }
 
-    this.setupIntersectionObserver(this.dom);
+    // Fallback variants are static – no autoplay, no lazy loading needed.
+    const isFallback = this.dom.classList.contains('ThumbSlider--fallback');
+    if (!isFallback) {
+      this.setupIntersectionObserver(this.dom);
+    }
   }
 
   onbeforeupdate() {
@@ -117,10 +152,51 @@ export default class ThumbSlider extends Component {
       }
     };
     img.onerror = () => {
-      imgEl.src = this.images[0];
-      this.dom.classList.remove('ThumbSlider--loading');
+      this.handleImageLoadFailure();
     };
     img.src = this.images[0];
+  }
+
+  handleImageLoadFailure() {
+    if (!this.dom) return;
+
+    const mode = this.attrs.fallbackMode;
+    const url = this.attrs.fallbackUrl;
+
+    // Stop autoplay - we're switching to a static fallback
+    this.stopAutoplay();
+    this.dom.classList.remove('ThumbSlider--loading');
+
+    if (mode === 'custom' && url) {
+      this.replaceTrackWithFallback(
+        '<img class="ThumbSlider__img" src="' + this.escapeAttr(url) + '" alt="" decoding="async" />'
+      );
+      this.dom.classList.add('ThumbSlider--fallback', 'ThumbSlider--fallback-custom');
+    } else if (mode === 'default') {
+      this.replaceTrackWithFallback('<div class="ThumbSlider__placeholder" aria-hidden="true"></div>');
+      this.dom.classList.add('ThumbSlider--fallback', 'ThumbSlider--fallback-default');
+    } else {
+      // mode === 'none': hide entire slider and restore default content layout
+      this.dom.style.display = 'none';
+      const contentEl = this.dom.closest('.DiscussionListItem-content');
+      if (contentEl) contentEl.classList.remove('has-ThumbSlider');
+    }
+
+    // Hide counter (single fallback slide doesn't need it)
+    const counter = this.dom.querySelector('.ThumbSlider__counter');
+    if (counter) counter.style.display = 'none';
+  }
+
+  replaceTrackWithFallback(innerHtml) {
+    const track = this.dom.querySelector('.ThumbSlider__track');
+    if (!track) return;
+    track.innerHTML = '<div class="ThumbSlider__item ThumbSlider__item--active">' + innerHtml + '</div>';
+  }
+
+  escapeAttr(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
   }
 
   preloadImage(index) {

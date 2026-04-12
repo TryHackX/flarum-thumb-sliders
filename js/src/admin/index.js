@@ -1,4 +1,20 @@
 import app from 'flarum/admin/app';
+import SupportModal from './components/SupportModal';
+import FallbackImageManager from './components/FallbackImageManager';
+
+app.initializers.add('tryhackx-thumb-sliders-support', () => {
+  app.registry.for('tryhackx-thumb-sliders').registerSetting(function () {
+    return m('div', { className: 'ThumbSliders-support' }, [
+      m('button', {
+        className: 'Button',
+        onclick: () => app.modal.show(SupportModal),
+      }, [
+        m('i', { className: 'fas fa-heart Button-icon icon' }),
+        app.translator.trans('tryhackx-thumb-sliders.admin.support.button'),
+      ]),
+    ]);
+  });
+});
 
 app.initializers.add('tryhackx-thumb-sliders', () => {
   app.registry
@@ -48,5 +64,19 @@ app.initializers.add('tryhackx-thumb-sliders', () => {
       help: app.translator.trans('tryhackx-thumb-sliders.admin.settings.max_img_size_help'),
       min: 0,
       max: 10000,
+    })
+    .registerSetting({
+      setting: 'tryhackx-thumb-sliders.fallback_mode',
+      type: 'select',
+      options: {
+        'none': app.translator.trans('tryhackx-thumb-sliders.admin.settings.fallback_mode_none'),
+        'default': app.translator.trans('tryhackx-thumb-sliders.admin.settings.fallback_mode_default'),
+        'custom': app.translator.trans('tryhackx-thumb-sliders.admin.settings.fallback_mode_custom'),
+      },
+      label: app.translator.trans('tryhackx-thumb-sliders.admin.settings.fallback_mode_label'),
+      help: app.translator.trans('tryhackx-thumb-sliders.admin.settings.fallback_mode_help'),
+    })
+    .registerSetting(function () {
+      return m(FallbackImageManager);
     });
 });

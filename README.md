@@ -1,6 +1,8 @@
 # Thumb Sliders for Flarum
 
 A Flarum extension that displays an animated thumbnail image slider on the left side of each discussion in the discussion list. Images are automatically extracted from the first post content.
+
+> **Latest (v2.0.1):** Support button moved to top of admin page with CSS improvements.
 ![Preview Thumb Sliders](assets/preview.png)
 
 ## Features
@@ -27,6 +29,22 @@ A Flarum extension that displays an animated thumbnail image slider on the left 
 | **Max images** | 10 | Maximum images per slider (1-20) |
 | **Min image dimension** | 50px | Images smaller than this are excluded |
 | **Max image dimension** | 5000px | Images larger than this are excluded |
+
+## Screenshots
+
+![Admin panel with page management, BBCode editor with toolbar, and live preview](assets/preview.gif)
+
+*Admin panel with page management, and live preview.*
+
+## Support Development
+
+If you find this extension useful, consider supporting its development:
+
+- **Monero (XMR):** `45hvee4Jv7qeAm6SrBzXb9YVjb8DkHtFtFh7qkDMxS9zYX3NRi1dV27MtSdVC5X8T1YVoiG8XFiJkh4p9UncqWGxHi4tiwk`
+- **Bitcoin (BTC):** `bc1qncavcek4kknpvykedxas8kxash9kdng990qed2`
+- **Ethereum (ETH):** `0xa3d38d5Cf202598dd782C611e9F43f342C967cF5`
+
+You can also find the donation option in the extension's admin settings panel.
 
 ## Compatibility
 

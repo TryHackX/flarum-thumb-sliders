@@ -8,6 +8,9 @@ use Flarum\Api\Schema;
 use Flarum\Api\Endpoint;
 use Flarum\Api\Context;
 use Flarum\Discussion\Discussion;
+use TryHackX\ThumbSliders\Api\Controller\UploadFallbackImageController;
+use TryHackX\ThumbSliders\Api\Controller\ListFallbackImagesController;
+use TryHackX\ThumbSliders\Api\Controller\DeleteFallbackImageController;
 
 return [
     (new Extend\Frontend('forum'))
@@ -15,7 +18,8 @@ return [
         ->css(__DIR__ . '/less/forum.less'),
 
     (new Extend\Frontend('admin'))
-        ->js(__DIR__ . '/js/dist/admin.js'),
+        ->js(__DIR__ . '/js/dist/admin.js')
+        ->css(__DIR__ . '/less/admin.less'),
 
     new Extend\Locales(__DIR__ . '/locale'),
 
@@ -75,9 +79,30 @@ return [
         ->default('tryhackx-thumb-sliders.slider_width', 150)
         ->default('tryhackx-thumb-sliders.autoplay_speed', 1200)
         ->default('tryhackx-thumb-sliders.enabled', true)
+        ->default('tryhackx-thumb-sliders.fallback_mode', 'none')
+        ->default('tryhackx-thumb-sliders.fallback_image', '')
         ->serializeToForum('thumbSlidersSliderWidth', 'tryhackx-thumb-sliders.slider_width')
         ->serializeToForum('thumbSlidersAutoplaySpeed', 'tryhackx-thumb-sliders.autoplay_speed')
         ->serializeToForum('thumbSlidersEnabled', 'tryhackx-thumb-sliders.enabled', function ($value) {
             return (bool) $value;
+        })
+        ->serializeToForum('thumbSlidersFallbackMode', 'tryhackx-thumb-sliders.fallback_mode')
+        ->serializeToForum('thumbSlidersFallbackImageUrl', 'tryhackx-thumb-sliders.fallback_image', function ($value) {
+            if (empty($value)) {
+                return '';
+            }
+            try {
+                $factory = resolve(\Illuminate\Contracts\Filesystem\Factory::class);
+                $disk = $factory->disk('flarum-assets');
+                $path = 'extensions/tryhackx-thumb-sliders/fallback/' . $value;
+                return $disk->exists($path) ? $disk->url($path) : '';
+            } catch (\Throwable $e) {
+                return '';
+            }
         }),
+
+    (new Extend\Routes('api'))
+        ->post('/thumb-sliders/uploads', 'thumb-sliders.upload', UploadFallbackImageController::class)
+        ->get('/thumb-sliders/uploads', 'thumb-sliders.list', ListFallbackImagesController::class)
+        ->delete('/thumb-sliders/uploads/{filename}', 'thumb-sliders.delete', DeleteFallbackImageController::class),
 ];

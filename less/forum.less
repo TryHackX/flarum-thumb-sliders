@@ -147,7 +147,7 @@ body.dark .ThumbSlider__placeholder,
     top: 50%;
     transform: translateY(-102%);
     margin: 0;
-    z-index: 10;
+    z-index: 1;
   }
 
   .DiscussionListItem-info .item-rating {
@@ -156,7 +156,7 @@ body.dark .ThumbSlider__placeholder,
     top: 50%;
     transform: translateY(2px);
     margin: 0;
-    z-index: 11;
+    z-index: 2;
   }
 
   .DiscussionListItem-info:not(:has(> .item-tags)) .item-rating {
@@ -218,11 +218,19 @@ body.dark .ThumbSlider__placeholder,
   }
 }
 
+// ------------------------------------
+// POPRAWKA: Rozciągamy tylko na desktop
+// ------------------------------------
 @media @tablet-up {
   .DiscussionListItem-content {
     padding-left: 15px;
     padding-right: 25px;
     .LayoutFixes();
+  }
+  
+  .DiscussionListItem-content.has-ThumbSlider {
+    // Proste rozwiązanie, nie wpływa na wersję mobilną
+    width: 102%;
   }
 }
 
@@ -249,6 +257,9 @@ body.dark .ThumbSlider__placeholder,
     padding-left: 12px;
     padding-right: 12px;
     gap: 8px;
+    
+    // Zabezpieczenie szerokości dla pewności na telefonach
+    width: 100%;
 
     .DiscussionListItem-main:has(.item-tags):has(.item-rating) {
       .DiscussionListItem-title { margin-right: 90px; }

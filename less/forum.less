@@ -99,179 +99,167 @@
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><g fill='none' stroke='%23bbb' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><rect x='10' y='14' width='44' height='36' rx='3'/><circle cx='22' cy='26' r='4'/><path d='M10 42 L24 30 L36 40 L46 32 L54 40'/><line x1='12' y1='12' x2='52' y2='52' opacity='0.7'/></g></svg>");
 }
 
-.LayoutFixes() {
+// ─────────────────────────────────────────────────────────────────────
+// SHARED RESTRUCTURED DISCUSSION-LIST LAYOUT
+// Mirror of the identical block in flarum-topic-rating/less/forum.less.
+// Markup is produced by discussionListLayout.js (contentView override).
+// Replaces the former absolute-offset lattice (.LayoutFixes mixin + the
+// per-combination @phone row offsets) with a single flex row plus a
+// right-hand meta column that flexbox aligns automatically.
+//
+//   [thumb] [author] [main: title + info] [meta: tags/rating/replies/views]
+// ─────────────────────────────────────────────────────────────────────
+.DiscussionListItem-content--restructured {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
+  padding: 12px 6px 12px 6px;
 
-  .DiscussionListItem-author {
-    float: none;
-    margin: 0;
-    flex-shrink: 0;
+  > .ThumbSlider {
+    flex: 0 0 auto;
   }
 
-  .DiscussionListItem-badges {
-    float: none;
+  > .DiscussionListItem-author {
+    flex: 0 0 auto;
     margin: 0;
-    flex-shrink: 0;
-    &:empty { display: none; }
   }
 
-  .DiscussionListItem-main {
-    flex: 1;
+  > .DiscussionListItem-main {
+    flex: 1 1 auto;
     min-width: 0;
     margin: 0;
-    padding: 12px 0;
-    position: relative;
   }
 
-  .DiscussionListItem-main:has(.item-tags), 
-  .DiscussionListItem-main:has(.item-rating) {
-    .DiscussionListItem-title {
-      margin-right: 80px; 
-    }
+  // The big right margin core adds to dodge the old absolute items is no
+  // longer needed now that the meta column is a real flex sibling.
+  .DiscussionListItem-info .item-excerpt {
+    margin-right: 0;
   }
 
-  .DiscussionListItem-main:has(.item-tags):has(.item-rating) {
-    .DiscussionListItem-title {
-      margin-right: 140px;
-    }
+  > .DiscussionListItem-meta {
+    flex: 0 0 auto;
+    // Cap the meta column so a discussion with many tags wraps them
+    // down inside the column instead of pushing the row wider.
+    max-width: 18%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-end;
+    gap: 4px;
+    text-align: right;
+    white-space: nowrap;
   }
 
-  .DiscussionListItem-info > .item-tags {
-    position: absolute;
-    right: 0;
-    top: 50%;
-    transform: translateY(-102%);
-    margin: 0;
-    z-index: 1;
-  }
-
-  .DiscussionListItem-info .item-rating {
-    position: absolute;
-    right: 0;
-    top: 50%;
-    transform: translateY(2px);
-    margin: 0;
-    z-index: 2;
-  }
-
-  .DiscussionListItem-info:not(:has(> .item-tags)) .item-rating {
-    transform: translateY(-50%);
-  }
-
-  .DiscussionListItem-info:not(:has(.item-rating)) > .item-tags {
-    transform: translateY(-50%);
-  }
-
-  .DiscussionListItem-count {
-    float: none;
-    margin: 0;
-    flex-shrink: 0;
+  .DiscussionListItem-meta-item {
     display: flex;
     align-items: center;
-    gap: 4px;
+    justify-content: flex-end;
+    gap: 6px;
+    margin: 0;
     padding: 0;
-    width: 55px;
-
-    &:before {
-      float: none;
-      margin: 0;
-    }
+    font-size: 12px;
+    line-height: 1.2;
+    color: var(--muted-color);
   }
 
-  &:has(.item-discussion-views) {
-    .DiscussionListItem-count {
-      transform: translateY(-12px);
-      justify-content: flex-start;
-
-      &:before {
-        width: 16px;
-        text-align: center;
-      }
-    }
-
-    .item-discussion-views {
-      position: absolute;
-      right: -65px; 
-      top: 50%;
-      transform: translateY(2px);
-      width: 54px;
+  // Reply count (core renders a pill on mobile) and FoF views share one
+  // flat icon + number look so the column lines up.
+  .DiscussionListItem-meta-item--stat,
+  .DiscussionListItem-meta-item--views {
+    .DiscussionListItem-stats-item,
+    > span {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      width: auto;
       margin: 0;
       padding: 0;
-      
-      span {
-        display: flex;
-        align-items: center;
-        gap: 4px;
-        
-        i {
-          margin: 0;
-          width: 16px;
-          text-align: center;
-        }
-      }
+      background: none;
+      border-radius: 0;
+      color: inherit;
+      font-size: inherit;
+    }
+
+    .icon,
+    .DiscussionListItem-stats-item-icon,
+    i {
+      display: inline-block;
+      width: 16px;
+      margin: 0;
+      font-size: 12px;
+      text-align: center;
     }
   }
-}
 
-@media @tablet-up {
-  .DiscussionListItem-content {
-    padding-left: 15px;
-    padding-right: 25px;
-    .LayoutFixes();
+  // Keep the stars on a single row inside the column.
+  .DiscussionListItem-meta-item--rating .StarRating {
+    flex-direction: row;
   }
-}
 
-.DiscussionListItem-content.has-ThumbSlider {
-  .LayoutFixes();
-  
-  .ThumbSlider {
-    float: none;
-    margin: 0;
+  // Tag labels wrap naturally inside the (already-capped) meta column,
+  // so many tags stack down instead of pushing the row wider.
+  .DiscussionListItem-meta-item--tags {
+    .TagsLabel {
+      margin: 0;
+      display: inline-flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 4px 6px;
+    }
   }
 }
 
 @media @phone {
-  .ThumbSlider {
-    width: 60px !important;
-  }
-
-  .ThumbSlider__counter {
-    font-size: 7px;
-    padding: 0 3px;
-  }
-
-  .DiscussionListItem-content.has-ThumbSlider {
-    padding-left: 12px;
-    padding-right: 12px;
+  .DiscussionListItem-content--restructured {
     gap: 8px;
+    padding: 10px 6px 10px 6px;
 
-    .DiscussionListItem-main:has(.item-tags):has(.item-rating) {
-      .DiscussionListItem-title { margin-right: 90px; }
-    }
-    .DiscussionListItem-main:has(.item-tags):not(:has(.item-rating)),
-    .DiscussionListItem-main:has(.item-rating):not(:has(.item-tags)) {
-      .DiscussionListItem-title { margin-right: 55px; }
+    > .ThumbSlider {
+      width: 56px !important;
     }
 
-    &:has(.item-discussion-views) {
-      .item-discussion-views {
-         right: -63px;
-      }
+    // Override core's @phone `.DiscussionListItem-main { padding-right: 48px }`
+    // (that padding only existed to dodge the old absolute stats column).
+    .DiscussionListItem-main {
+      padding-right: 4px;
+    }
+
+    .DiscussionListItem-meta {
+      gap: 3px;
+    }
+
+    .DiscussionListItem-meta-item {
+      font-size: 11px;
+    }
+
+    .DiscussionListItem-meta-item--tags {
+      max-width: 110px;
     }
 
     .DiscussionListItem-author .Avatar {
-      .Avatar--size(28px);
+      .Avatar--size(30px);
     }
   }
 }
 
+// Reserve space to the right of the title for the meta column. Overrides
+// flarum/tags' own `.IndexPage .DiscussionListItem-title { margin-right }`
+// so the value survives a fresh reinstall of the (foreign) tags extension.
 @media @tablet-up {
-  .DiscussionListItem-content.has-ThumbSlider {
-    .DiscussionListItem-author .Avatar {
-      .Avatar--size(36px);
+  .IndexPage,
+  .UserPage,
+  .DiscussionList--floatingTags {
+    .DiscussionListItem-content--restructured .DiscussionListItem-title {
+      margin-right: 32px;
     }
+  }
+
+  // Tighter, symmetric horizontal padding on the row itself. Core ships
+  // 25 / 15 on tablet+, we want 12 / 12 to match the inner content
+  // padding rhythm (12px both sides on .DiscussionListItem-content--restructured).
+  .DiscussionListItem {
+    padding-right: 12px;
+    padding-left: 12px;
   }
 }
 

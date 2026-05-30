@@ -2,8 +2,12 @@ import app from 'flarum/forum/app';
 import { extend } from 'flarum/common/extend';
 import DiscussionListItem from 'flarum/forum/components/DiscussionListItem';
 import ThumbSlider from './components/ThumbSlider';
+import installDiscussionListLayout from './discussionListLayout';
 
 app.initializers.add('tryhackx-thumb-sliders', () => {
+  // Shared, idempotent layout override coordinated with topic-rating + FoF views.
+  installDiscussionListLayout();
+
   // Extend contentItems to add the thumbnail slider on the left
   extend(DiscussionListItem.prototype, 'contentItems', function (items) {
     // Check if extension is enabled

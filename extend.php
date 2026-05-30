@@ -81,12 +81,14 @@ return [
         ->default('tryhackx-thumb-sliders.enabled', true)
         ->default('tryhackx-thumb-sliders.fallback_mode', 'none')
         ->default('tryhackx-thumb-sliders.fallback_image', '')
+        ->default('tryhackx-thumb-sliders.avatar_mode', 'none')
         ->serializeToForum('thumbSlidersSliderWidth', 'tryhackx-thumb-sliders.slider_width')
         ->serializeToForum('thumbSlidersAutoplaySpeed', 'tryhackx-thumb-sliders.autoplay_speed')
         ->serializeToForum('thumbSlidersEnabled', 'tryhackx-thumb-sliders.enabled', function ($value) {
             return (bool) $value;
         })
         ->serializeToForum('thumbSlidersFallbackMode', 'tryhackx-thumb-sliders.fallback_mode')
+        ->serializeToForum('thumbSlidersAvatarMode', 'tryhackx-thumb-sliders.avatar_mode')
         ->serializeToForum('thumbSlidersFallbackImageUrl', 'tryhackx-thumb-sliders.fallback_image', function ($value) {
             if (empty($value)) {
                 return '';

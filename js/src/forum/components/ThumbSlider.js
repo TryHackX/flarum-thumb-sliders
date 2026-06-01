@@ -83,10 +83,10 @@ export default class ThumbSlider extends Component {
     super.oncreate(vnode);
     this.dom = vnode.dom;
 
-    const sliderWidth = this.attrs.sliderWidth || 150;
+    // Mark the row so coordinating extensions (e.g. homepage-blocks' mobile
+    // fallback) can tell a thumb is present via `:not(.has-ThumbSlider)`.
     const contentEl = this.dom.closest('.DiscussionListItem-content');
     if (contentEl) {
-      contentEl.style.setProperty('--thumb-slider-width', sliderWidth + 'px');
       contentEl.classList.add('has-ThumbSlider');
     }
 

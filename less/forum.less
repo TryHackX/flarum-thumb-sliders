@@ -103,9 +103,9 @@
 // SHARED RESTRUCTURED DISCUSSION-LIST LAYOUT
 // Mirror of the identical block in flarum-topic-rating/less/forum.less.
 // Markup is produced by discussionListLayout.js (contentView override).
-// Replaces the former absolute-offset lattice (.LayoutFixes mixin + the
-// per-combination @phone row offsets) with a single flex row plus a
-// right-hand meta column that flexbox aligns automatically.
+// Replaces the former absolute-offset lattice (per-combination @phone row
+// offsets that hung off .has-ThumbSlider / :has()) with a single flex row
+// plus a right-hand meta column that flexbox aligns automatically.
 //
 //   [thumb] [author] [main: title + info] [meta: tags/rating/replies/views]
 // ─────────────────────────────────────────────────────────────────────
@@ -218,10 +218,12 @@
       width: 56px !important;
     }
 
-    // Override core's @phone `.DiscussionListItem-main { padding-right: 48px }`
-    // (that padding only existed to dodge the old absolute stats column).
+    // Cancel core's @phone `.DiscussionListItem-main { padding-right: 48px }`
+    // (that padding only existed to dodge the old absolute stats column). The
+    // flex `gap` above already separates main from the meta column, so no extra
+    // right padding is wanted — but the rule must stay to override the 48px.
     .DiscussionListItem-main {
-      padding-right: 4px;
+      padding-right: 0;
     }
 
     .DiscussionListItem-meta {
@@ -232,12 +234,31 @@
       font-size: 11px;
     }
 
-    .DiscussionListItem-meta-item--tags {
-      max-width: 110px;
-    }
+    // NOTE: tags are NOT in the meta column on phones — discussionListLayout.js
+    // renders them inside `.DiscussionListItem-main` (see `.DiscussionListItem-mobileTags`
+    // below), so the old `--tags { max-width }` cap is no longer needed here.
 
     .DiscussionListItem-author .Avatar {
       .Avatar--size(30px);
+    }
+
+    // Phone-only tag strip. Tags live inside the main column on their own line,
+    // just below the author/info line, and wrap across the full row width
+    // instead of stacking one-per-line in the cramped right-hand meta column.
+    .DiscussionListItem-mobileTags {
+      margin-top: 5px;
+      // Keep the tags compact in the main column. Left alone they inherit the
+      // larger body font (~13px base -> ~11px labels) and look bigger than on
+      // desktop. Pin 11px here; with TagLabel's own 0.85em that yields ~9px
+      // labels — at or just below the desktop tag size.
+      font-size: 11px;
+
+      .TagsLabel {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px 6px;
+        margin: 0;
+      }
     }
   }
 }
@@ -252,6 +273,15 @@
     .DiscussionListItem-content--restructured .DiscussionListItem-title {
       margin-right: 32px;
     }
+  }
+
+  // Reserve room to the right of the meta column for the absolutely-positioned
+  // controls dropdown (the ⋮ icon: `position: absolute; right: 5px`, ~36px
+  // wide). Without this the meta column (tags / rating / views / replies) slides
+  // underneath the ⋮ — most visible on rows that have no thumb or rating, where
+  // the meta column reaches furthest right. 28px clears the icon with ~5px gap.
+  .DiscussionListItem-content--restructured > .DiscussionListItem-meta {
+    margin-right: 28px;
   }
 
   // Tighter, symmetric horizontal padding on the row itself. Core ships

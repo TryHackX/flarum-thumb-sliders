@@ -7,6 +7,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.8] - 2026-06-01
+
+> Discussion-list layout polish for the shared restructured layout
+> (mirrored with `flarum-topic-rating`). Tags get a proper mobile home,
+> the desktop meta column stops colliding with the controls dropdown, and
+> the layout now re-flows reliably on resize / orientation change. No new
+> settings, no migrations, no API changes.
+
+### Changed
+- **Mobile tag placement.** On phones the discussion's tags now render
+  inside `.DiscussionListItem-main`, on their own line right below the
+  author/info line, wrapping across the full row width (`flex-wrap`)
+  instead of stacking one-per-line in the narrow right-hand meta column
+  (which made tag-heavy rows very tall). Tablet/desktop is unchanged —
+  tags stay in the meta column.
+- **Mobile tag size pinned** to `font-size: 11px` on
+  `.DiscussionListItem-mobileTags` (≈9px labels with `TagLabel`'s own
+  `0.85em`), so tags on mobile match or sit just below the desktop tag
+  size instead of inheriting the larger body font.
+- Mobile `.DiscussionListItem-main` right padding dropped from `4px` to
+  `0` — the flex `gap` already separates the main column from the meta
+  column, so the extra padding was redundant.
+- Shared layout module bumped to `LAYOUT_VERSION = 4`.
+
+### Fixed
+- **Desktop meta column no longer slides under the controls (⋮) dropdown.**
+  On tablet+ the meta column (tags / rating / views / replies) now reserves
+  `28px` on its right so it clears the absolutely-positioned controls icon.
+  Previously, on rows without a thumbnail or rating, the meta column reached
+  far enough right to overlap the ⋮ (most visible on hover/active rows).
+- **Tag layout re-flows reliably when the viewport crosses the phone
+  breakpoint** (window resize, device rotation). The previous build
+  recorded the "last breakpoint" inside `onbeforeupdate`, which never runs
+  on mount, so the *first* desktop↔mobile switch after page load was
+  silently dropped (tags didn't move until a second toggle). The flag is
+  now written in `contentView` (runs on every render incl. mount), and an
+  `onbeforeupdate` override forces a one-off rebuild on the render where
+  the breakpoint flips — beating core's `SubtreeRetainer`, which otherwise
+  pins each row to whichever layout it first rendered with.
+
+### Removed
+- Dead CSS custom property `--thumb-slider-width` (it was set on the
+  content element in `ThumbSlider`'s `oncreate` but never read by any
+  stylesheet). The `has-ThumbSlider` marker class is **kept** — it is a
+  deliberate hook for `flarum-homepage-blocks`' mobile fallback, which
+  targets `.DiscussionListItem-content:not(.has-ThumbSlider)` when neither
+  thumb-sliders nor topic-rating is active.
+
 ## [2.0.7] - 2026-05-30
 
 ### Added

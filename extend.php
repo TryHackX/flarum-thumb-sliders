@@ -12,6 +12,17 @@ use TryHackX\ThumbSliders\Api\Controller\UploadFallbackImageController;
 use TryHackX\ThumbSliders\Api\Controller\ListFallbackImagesController;
 use TryHackX\ThumbSliders\Api\Controller\DeleteFallbackImageController;
 
+// Shared avatar-display mode, coordinated with flarum-topic-rating. Kept valid
+// here (instead of via ->default()) because BOTH extensions serialize the same
+// neutral `tryhackx-avatars.*` keys, and ->default() throws if the same key is
+// registered twice. The serializer is duplicate-safe: ForumResource fields are
+// keyed by attribute name (last-wins) and both extensions yield the same value.
+$normalizeAvatarMode = function ($value) {
+    $v = is_string($value) ? $value : '';
+
+    return in_array($v, ['show', 'with_image', 'always', 'hide'], true) ? $v : 'show';
+};
+
 return [
     (new Extend\Frontend('forum'))
         ->js(__DIR__ . '/js/dist/forum.js')
@@ -81,14 +92,14 @@ return [
         ->default('tryhackx-thumb-sliders.enabled', true)
         ->default('tryhackx-thumb-sliders.fallback_mode', 'none')
         ->default('tryhackx-thumb-sliders.fallback_image', '')
-        ->default('tryhackx-thumb-sliders.avatar_mode', 'none')
         ->serializeToForum('thumbSlidersSliderWidth', 'tryhackx-thumb-sliders.slider_width')
         ->serializeToForum('thumbSlidersAutoplaySpeed', 'tryhackx-thumb-sliders.autoplay_speed')
         ->serializeToForum('thumbSlidersEnabled', 'tryhackx-thumb-sliders.enabled', function ($value) {
             return (bool) $value;
         })
         ->serializeToForum('thumbSlidersFallbackMode', 'tryhackx-thumb-sliders.fallback_mode')
-        ->serializeToForum('thumbSlidersAvatarMode', 'tryhackx-thumb-sliders.avatar_mode')
+        ->serializeToForum('tryhackxAvatarModeDesktop', 'tryhackx-avatars.mode_desktop', $normalizeAvatarMode)
+        ->serializeToForum('tryhackxAvatarModeMobile', 'tryhackx-avatars.mode_mobile', $normalizeAvatarMode)
         ->serializeToForum('thumbSlidersFallbackImageUrl', 'tryhackx-thumb-sliders.fallback_image', function ($value) {
             if (empty($value)) {
                 return '';

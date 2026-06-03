@@ -49,7 +49,7 @@ import listItems from 'flarum/common/helpers/listItems';
 import highlight from 'flarum/common/helpers/highlight';
 import classList from 'flarum/common/utils/classList';
 
-const LAYOUT_VERSION = 4;
+const LAYOUT_VERSION = 5;
 
 // Must mirror the `@phone` breakpoint in core's less variables (and the
 // `@media @phone` blocks in our forum.less): max-width 767.98px.
@@ -124,8 +124,56 @@ export default function installDiscussionListLayout() {
     const views = infoItems.has('discussion-views') ? infoItems.get('discussion-views') : null;
     const tags = infoItems.has('tags') ? infoItems.get('tags') : null;
 
-    // Nothing for us to relocate -> keep the stock layout.
-    if (!thumb && !rating && !views && !tags) {
+    const discussion = this.attrs.discussion;
+
+    // Phone breakpoint is evaluated in JS (see header). Record it on EVERY
+    // render (incl. mount and the stock-layout path below) so onbeforeupdate
+    // can force a rebuild whenever the viewport crosses the breakpoint — needed
+    // not only for tag placement but also for the per-device avatar hiding and
+    // rating placement, which can flip a row between the stock and restructured
+    // layouts. Set here — on every render — so it never drifts from the DOM.
+    const isPhone = window.matchMedia(PHONE_QUERY).matches;
+    this._tryhackxLastPhone = isPhone;
+
+    // Per-device avatar display mode, shared with flarum-thumb-sliders through
+    // the neutral `tryhackx-avatars.*` settings (serialized to these attributes
+    // by whichever extension is installed; falls back to 'show'). Modes:
+    //   'show'       -> always keep the author avatar.
+    //   'with_image' -> hide it only when the discussion has a real extracted
+    //                   image (a thumb replaces it; fallbacks keep the avatar).
+    //   'always'     -> hide it whenever a thumb (incl. fallback) is shown; if
+    //                   there is no thumb at all keep the avatar so the row is
+    //                   never left empty.
+    //   'hide'       -> never show the avatar. A thumb (if any) stands in for
+    //                   it; otherwise the row simply has none — the lighter
+    //                   list topic-rating users asked for.
+    // With thumb-sliders absent there is never a thumb, so only 'show'/'hide'
+    // have a visible effect — i.e. the replace modes self-detect thumbs.
+    const avatarMode = (isPhone
+      ? app.forum.attribute('tryhackxAvatarModeMobile')
+      : app.forum.attribute('tryhackxAvatarModeDesktop')) || 'show';
+    const thumbImages = discussion.attribute('thumbImages');
+    const hasRealImage = Array.isArray(thumbImages) && thumbImages.length > 0;
+    let showAvatar = true;
+    if (avatarMode === 'hide') showAvatar = false;
+    else if (avatarMode === 'always') showAvatar = !thumb;
+    else if (avatarMode === 'with_image') showAvatar = !hasRealImage;
+
+    // Per-device discussion-list rating style (topic-rating). The `_title`
+    // variants move the rating from the right meta column to the end of the
+    // title; topic-rating's StarRating renders the matching compact/full form.
+    // Attributes are absent when topic-rating isn't installed (and then there
+    // is no rating item anyway), so this safely no-ops there.
+    const ratingStyle = (isPhone
+      ? app.forum.attribute('tryhackxTopicRatingListStyleMobile')
+      : app.forum.attribute('tryhackxTopicRatingListStyleDesktop')) || 'full_meta';
+    const ratingAfterTitle = !!rating && /_title$/.test(ratingStyle);
+
+    // Nothing for us to relocate AND the avatar is staying -> keep the stock
+    // layout. ('hide' is the only mode that can drop the avatar with none of
+    // the coordinated items present, so it is what pulls an otherwise-plain row
+    // into the restructured layout.)
+    if (!thumb && !rating && !views && !tags && showAvatar) {
       return original();
     }
 
@@ -134,34 +182,8 @@ export default function installDiscussionListLayout() {
     infoItems.remove('discussion-views');
     infoItems.remove('tags');
 
-    const discussion = this.attrs.discussion;
     const isUnread = discussion.isUnread();
     const isRead = discussion.isRead();
-
-    // On phones the tags render inside the main column (full width, flex-wrap)
-    // instead of the narrow right-hand meta column. See file header.
-    const isPhone = window.matchMedia(PHONE_QUERY).matches;
-
-    // Record what this render is committing to, so onbeforeupdate can detect a
-    // later breakpoint flip and force a rebuild (SubtreeRetainer would otherwise
-    // skip it). Set here — on every render incl. mount — so it never drifts out
-    // of sync with the actual DOM.
-    this._tryhackxLastPhone = isPhone;
-
-    // Avatar replacement (thumb-sliders feature). `thumbSlidersAvatarMode` only
-    // exists when thumb-sliders is installed; when it is absent we keep the
-    // avatar. Modes:
-    //   'with_image' -> hide the avatar only when the discussion has a real
-    //                   extracted image (fallbacks still show the avatar).
-    //   'always'     -> always hide the avatar so the thumb (or its configured
-    //                   fallback) stands in for it. If there is no thumb at all
-    //                   we keep the avatar, so the row is never left empty.
-    const avatarMode = app.forum.attribute('thumbSlidersAvatarMode') || 'none';
-    const thumbImages = discussion.attribute('thumbImages');
-    const hasRealImage = Array.isArray(thumbImages) && thumbImages.length > 0;
-    let showAvatar = true;
-    if (avatarMode === 'always') showAvatar = !thumb;
-    else if (avatarMode === 'with_image') showAvatar = !hasRealImage;
 
     // getJumpTo() also sets this.highlightRegExp, consumed by highlight() and
     // by the search excerpt inside infoItems, so it must run first.
@@ -171,7 +193,7 @@ export default function installDiscussionListLayout() {
     // On phones the tags are pulled out and rendered in the main column below.
     const meta = [];
     if (tags && !isPhone) meta.push(<div className="DiscussionListItem-meta-item DiscussionListItem-meta-item--tags">{tags}</div>);
-    if (rating) meta.push(<div className="DiscussionListItem-meta-item DiscussionListItem-meta-item--rating">{rating}</div>);
+    if (rating && !ratingAfterTitle) meta.push(<div className="DiscussionListItem-meta-item DiscussionListItem-meta-item--rating">{rating}</div>);
     if (views) meta.push(<div className="DiscussionListItem-meta-item DiscussionListItem-meta-item--views">{views}</div>);
     this.statsItems()
       .toArray()
@@ -189,7 +211,10 @@ export default function installDiscussionListLayout() {
         {thumb}
         {showAvatar ? this.authorView() : null}
         <Link href={app.route.discussion(discussion, jumpTo)} className="DiscussionListItem-main">
-          <h2 className="DiscussionListItem-title">{highlight(discussion.title(), this.highlightRegExp)}</h2>
+          <h2 className="DiscussionListItem-title">
+            {highlight(discussion.title(), this.highlightRegExp)}
+            {rating && ratingAfterTitle ? <span className="DiscussionListItem-titleRating">{rating}</span> : null}
+          </h2>
           <ul className="DiscussionListItem-info">{listItems(infoItems.toArray())}</ul>
           {isPhone && tags ? <div className="DiscussionListItem-mobileTags">{tags}</div> : null}
         </Link>

@@ -4,13 +4,15 @@ A Flarum extension that displays an animated thumbnail image slider on the
 left side of each discussion in the discussion list. Images are automatically
 extracted from the first post content.
 
-> **Latest:** Optional **avatar replacement** mode — let the thumbnail take
-> the place of the author avatar on the list (off / when-image-present /
-> always). Ships a shared **restructured layout module** (mirrored with
-> `flarum-topic-rating`) that replaces the old absolute-position lattice
-> with a clean flex/grid row: `[thumb] [avatar] [title + info] [meta]`,
-> with the meta column adapting to whatever extensions are active
-> (tags, rating, FoF discussion-views, replies).
+> **Latest (2.1.0):** The avatar control is now a **shared, per-device**
+> section (Desktop / Mobile) — *Show* / *Replace with thumbnail when the topic
+> has an image* / *Always replace* / **Hide avatar** — kept in sync with
+> `flarum-topic-rating` (the same section appears in both admins; changing it
+> in one updates the other). Your previous *Replace avatar* choice is migrated
+> automatically. Built on the shared **restructured layout module** (mirrored
+> with `flarum-topic-rating`): a clean flex/grid row
+> `[thumb] [avatar] [title + info] [meta]` whose meta column adapts to whatever
+> extensions are active (tags, rating, FoF discussion-views, replies).
 
 > **Note:** Recent updates target the **2.x** line only. The **1.x** branch
 > (Flarum 1.8+) is **no longer actively developed** — it stays available
@@ -28,10 +30,12 @@ extracted from the first post content.
   pre-loaded in the background for seamless playback.
 - **Configurable fallback** — When the first post has no usable image you
   can show nothing, a built-in placeholder, or your own uploaded image.
-- **Avatar replacement** *(new)* — Optionally hide the author avatar when
-  the thumbnail (or its fallback) takes its place. *"Always"* requires
-  a fallback to be set so the row is never left empty; the layout
-  degrades gracefully if you forget.
+- **Shared avatar control** *(per device; synced with `flarum-topic-rating`)* —
+  a Desktop/Mobile section to *Show* the author avatar, *Replace* it with the
+  thumbnail (when an image is present, or always), or **Hide** it entirely for
+  a lighter list. The same section appears in the Topic Rating admin and the
+  two stay in sync. *Replace* modes need a thumbnail (real image or fallback)
+  so the row is never left empty; **Hide** works regardless.
 - **Shared layout module** — Drops a clean flex/grid layout for
   `DiscussionListItem` and a right-side meta column that hosts tags,
   rating, FoF views and replies. Mirrored with `flarum-topic-rating` so
@@ -56,7 +60,9 @@ extracted from the first post content.
 | **Min image dimension** | 50 px | Skip images smaller than this. |
 | **Max image dimension** | 5000 px | Skip images larger than this. |
 | **Fallback when no image is available** | No thumbnail | One of: no thumbnail / built-in placeholder / custom uploaded image. |
-| **Replace avatar with thumbnail** *(new)* | Off | *Off* — show both. *Replace when image present* — hide avatar only when a real extracted image exists. *Always* — always hide avatar (needs a fallback so the row isn't empty; falls back to keeping the avatar if no thumb at all). |
+| **Avatars — Desktop** / **Mobile** ¹ | Show avatar | Per device: *Show* / *Replace with thumbnail when the topic has an image* / *Always replace* / *Hide avatar*. |
+
+¹ **Shared** setting — the same Desktop/Mobile avatar section appears in the `flarum-topic-rating` admin, and changing it in either extension updates the other. The *Replace* modes only take effect when a thumbnail is shown; *Hide* applies regardless. Upgrading from ≤2.0.x migrates your old *Replace avatar with thumbnail* choice automatically.
 
 ## Screenshots
 

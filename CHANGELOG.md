@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-06-03
+
+> The "Replace avatar with thumbnail" setting grows up: it is now a **shared,
+> per-device avatar section** (Desktop / Mobile) with a new **Hide avatar**
+> mode, kept in sync with `flarum-topic-rating`. Your previous choice is
+> migrated automatically. The shared layout module advances in lock-step with
+> topic-rating.
+
+### Added
+- **Shared avatar section — Desktop & Mobile.** Replaces the single
+  *Replace avatar with thumbnail* select with a per-device control offering
+  *Show avatar* / *Replace with thumbnail when the topic has an image* /
+  *Always replace with thumbnail* / **Hide avatar**. The new **Hide** mode
+  removes the author avatar entirely for a lighter list (most useful on mobile)
+  and works even when no thumbnail is shown. The section also appears in the
+  `flarum-topic-rating` admin — both extensions read/write the same neutral
+  `tryhackx-avatars.mode_desktop` / `…_mobile` keys (serialized as
+  `tryhackxAvatarModeDesktop` / `…Mobile`), so a change in either is reflected
+  in the other.
+- **Migration** `2026_06_03_000000_seed_shared_avatar_mode` — seeds the new
+  shared keys from the old `tryhackx-thumb-sliders.avatar_mode` (`none → Show`;
+  `with_image` and `always` preserved) so existing installs keep their choice.
+  Idempotent, and never overwrites a value already set via the new UI.
+
+### Changed
+- **Shared discussion-list layout module → `LAYOUT_VERSION = 5`**
+  (byte-identical with `flarum-topic-rating`): per-device avatar modes plus
+  topic-rating's rating placement.
+- **Admin avatar selects** render at their natural width and clip long labels
+  with an ellipsis instead of overflowing the card on narrow / mobile widths.
+
+### Removed
+- The single `tryhackx-thumb-sliders.avatar_mode` setting and the
+  `thumbSlidersAvatarMode` forum attribute (replaced by the shared per-device
+  avatar section above). The old value is **migrated automatically** — no
+  manual action needed. The thumbnail **fallback** setting is unchanged.
+
 ## [2.0.8] - 2026-06-01
 
 > Discussion-list layout polish for the shared restructured layout

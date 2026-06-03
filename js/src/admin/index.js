@@ -1,6 +1,7 @@
 import app from 'flarum/admin/app';
 import SupportModal from './components/SupportModal';
 import FallbackImageManager from './components/FallbackImageManager';
+import AvatarSettings from './components/AvatarSettings';
 
 // Add Flarum's standard `Button--inverted` to the Cancel button in core's
 // "Reset extension settings" modal so it doesn't render as a plain
@@ -103,18 +104,11 @@ app.initializers.add('tryhackx-thumb-sliders', () => {
       label: app.translator.trans('tryhackx-thumb-sliders.admin.settings.fallback_mode_label'),
       help: app.translator.trans('tryhackx-thumb-sliders.admin.settings.fallback_mode_help'),
     })
-    .registerSetting({
-      setting: 'tryhackx-thumb-sliders.avatar_mode',
-      type: 'select',
-      options: {
-        'none': app.translator.trans('tryhackx-thumb-sliders.admin.settings.avatar_mode_none'),
-        'with_image': app.translator.trans('tryhackx-thumb-sliders.admin.settings.avatar_mode_with_image'),
-        'always': app.translator.trans('tryhackx-thumb-sliders.admin.settings.avatar_mode_always'),
-      },
-      label: app.translator.trans('tryhackx-thumb-sliders.admin.settings.avatar_mode_label'),
-      help: app.translator.trans('tryhackx-thumb-sliders.admin.settings.avatar_mode_help'),
-    })
     .registerSetting(function () {
       return m(FallbackImageManager);
+    })
+    // Shared avatar section (also present in Topic Rating; same setting keys).
+    .registerSetting(function () {
+      return m(AvatarSettings);
     });
 });

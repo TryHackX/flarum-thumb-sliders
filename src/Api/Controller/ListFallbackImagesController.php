@@ -36,6 +36,12 @@ class ListFallbackImagesController implements RequestHandlerInterface
                     if ($filename === '' || $filename[0] === '.') {
                         continue;
                     }
+                    // Only surface raster images. A legacy or manually-placed
+                    // .svg must never be selectable as a fallback (stored-XSS).
+                    $fext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+                    if (!in_array($fext, ['webp', 'jpg', 'jpeg', 'png', 'gif', 'bmp', 'avif'], true)) {
+                        continue;
+                    }
                     $items[] = [
                         'filename' => $filename,
                         'url' => $disk->url($path),

@@ -7,6 +7,65 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.1] - 2026-06-08
+
+> Security, performance, robustness and i18n fixes. No new settings or migrations.
+
+### Security
+- **SVG is no longer accepted as a fallback image.** The fallback-image upload
+  previously allowed SVG and only blocked literal `<script>` tags, leaving script
+  execution possible through other SVG vectors (`onload=` and other event
+  attributes, `<use href="javascript:…">`, `<foreignObject>`, CSS `expression()`).
+  Because the fallback image is served from a public URL, a crafted SVG uploaded
+  by an admin would have been **stored XSS** reachable by every visitor. SVG (and
+  the stray `text/xml` / `application/xml` MIME types) are now rejected — only
+  raster formats (webp/jpeg/png/gif/bmp/avif) are accepted, validated with
+  `getimagesizefromstring()`. The fallback **list** endpoint and the forum-side
+  fallback-URL serializer also refuse non-raster entries, so any pre-existing
+  `.svg` can no longer be listed, selected, or served. (Upload is admin-only, so
+  this is defence-in-depth hardening rather than an anonymously-reachable hole.)
+
+### Changed
+- **Shared discussion-list layout module hardened** (in lock-step with
+  `flarum-topic-rating` — the file stays byte-identical between the two): the
+  idempotency guard now tolerates a third-party script clobbering the
+  `window.tryhackxDLL` global with a non-object, and warns in the console when two
+  installed copies report different `LAYOUT_VERSION`s (catches a partial
+  multi-extension upgrade instead of silently using the older layout). The
+  rendered layout is unchanged — `LAYOUT_VERSION` stays 5.
+- **No more wasted formatter render on text-only discussions.** `thumbImages`
+  extraction fell back to a full s9e TextFormatter render whenever the fast XML
+  scan found no images — including for pure plain-text first posts, on every
+  discussion-list request, uncached. It now skips that render for posts s9e roots
+  as plain text (`<t>…</t>`, which can never produce an `<img>`), keeping the
+  render only for rich posts (`<r>…</r>`) that might carry an embed/oembed
+  thumbnail. Thumbnail results are unchanged; the per-row cost on text-heavy
+  lists is removed.
+- **`thumbImages` logic moved out of `extend.php`** into a dedicated,
+  constructor-injected `Api\DiscussionThumbFields` class (settings / formatter /
+  logger injected once per request instead of `resolve()` inside the closure).
+  Mirrors `flarum-topic-rating`'s `DiscussionRatingFields` and makes the logic
+  unit-testable.
+- **Admin "Cancel" button styling** for core's *Reset extension settings* modal
+  now extends the modal's prototype (`oncreate`/`onupdate`) instead of running a
+  whole-document `MutationObserver` for the entire admin session — same approach
+  as `flarum-topic-rating`.
+- **Deleting a fallback image now uses a styled Flarum modal** (with a preview of
+  the image and its filename) instead of the browser's native `window.confirm()`
+  popup — new admin component `DeleteFallbackImageModal`.
+- `composer.json` now requires `php: ^8.3` (was `^8.2`), matching `flarum/core`'s
+  own requirement.
+
+### Added
+- **Polish translation (`locale/pl.yml`)** for the extension's own strings; the
+  shared `tryhackx-avatars.*` block is kept byte-identical with the copy in
+  `flarum-topic-rating`.
+
+### Fixed
+- The `thumbImages` extraction `catch (\Throwable)` no longer swallows failures
+  silently — it logs a warning (with the discussion id) before degrading to
+  "no thumbnail", so real problems are diagnosable.
+
 ## [2.1.0] - 2026-06-03
 
 > The "Replace avatar with thumbnail" setting grows up: it is now a **shared,

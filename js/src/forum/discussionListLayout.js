@@ -56,12 +56,34 @@ const LAYOUT_VERSION = 5;
 const PHONE_QUERY = '(max-width: 767.98px)';
 
 export default function installDiscussionListLayout() {
-  const registry = (window.tryhackxDLL = window.tryhackxDLL || {});
+  // Idempotent shared registry, coordinated across every TryHackX extension that
+  // ships this module. Defend against a third-party script having clobbered the
+  // global with a non-object (which would make the install guard below throw or
+  // silently no-op) by resetting to a fresh object. We keep the existing
+  // `installed` / `version` protocol so mixed extension versions (one updated,
+  // one not yet) still coordinate correctly.
+  let registry = window.tryhackxDLL;
+  if (!registry || typeof registry !== 'object') {
+    registry = window.tryhackxDLL = {};
+  }
 
-  // Idempotent: whichever of THUMBS / RATINGS initializes first installs the
-  // single override; the other no-ops. Render-time detection (below) handles
+  // Whichever extension (THUMBS / RATINGS / …) initializes first installs the
+  // single override; the others no-op. Render-time detection (below) handles
   // which features are actually active.
-  if (registry.installed) return;
+  if (registry.installed) {
+    // Already installed by another TryHackX extension. If the installed copy's
+    // version differs from ours, the byte-identical copies have DRIFTED (a
+    // partial upgrade) — warn instead of silently rendering with the older
+    // layout. Same version => nothing to do.
+    if (registry.version !== LAYOUT_VERSION && typeof console !== 'undefined') {
+      console.warn(
+        '[tryhackx] discussion-list layout v' + registry.version +
+          ' was already installed by another TryHackX extension, but this build ships v' +
+          LAYOUT_VERSION + '. Update all TryHackX extensions to the same version to avoid layout glitches.'
+      );
+    }
+    return;
+  }
   registry.installed = true;
   registry.version = LAYOUT_VERSION;
 

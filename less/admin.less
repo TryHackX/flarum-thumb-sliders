@@ -275,3 +275,43 @@
     white-space: nowrap;
   }
 }
+
+// Delete-confirmation modal for the fallback image library.
+.DeleteFallbackImageModal {
+  .DeleteFallbackImageModal-content {
+    text-align: center;
+  }
+
+  .DeleteFallbackImageModal-preview {
+    margin-bottom: 12px;
+
+    img {
+      max-width: 120px;
+      max-height: 180px;
+      border-radius: 4px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+    }
+  }
+
+  .DeleteFallbackImageModal-message {
+    margin-bottom: 4px;
+  }
+
+  .DeleteFallbackImageModal-filename {
+    font-size: 85%;
+    opacity: 0.75;
+    word-break: break-all;
+  }
+
+  .DeleteFallbackImageModal-error {
+    color: var(--error-color, #d83e3e);
+    margin: 8px 0;
+  }
+
+  .DeleteFallbackImageModal-buttons {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    margin-top: 16px;
+  }
+}

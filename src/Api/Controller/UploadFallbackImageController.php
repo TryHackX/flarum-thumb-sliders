@@ -15,10 +15,13 @@ class UploadFallbackImageController implements RequestHandlerInterface
     /** Maximum upload size in bytes (5 MB). */
     const MAX_SIZE = 5 * 1024 * 1024;
 
-    /** Allowed file extensions (lowercase, no dot). */
-    const ALLOWED_EXTENSIONS = ['webp', 'jpg', 'jpeg', 'png', 'gif', 'bmp', 'avif', 'svg'];
+    /**
+     * Allowed file extensions (lowercase, no dot). Raster only — SVG is
+     * deliberately excluded (see the validation block in handle()).
+     */
+    const ALLOWED_EXTENSIONS = ['webp', 'jpg', 'jpeg', 'png', 'gif', 'bmp', 'avif'];
 
-    /** Allowed MIME types. */
+    /** Allowed MIME types (raster image formats only). */
     const ALLOWED_MIMES = [
         'image/webp',
         'image/jpeg',
@@ -28,9 +31,6 @@ class UploadFallbackImageController implements RequestHandlerInterface
         'image/bmp',
         'image/x-ms-bmp',
         'image/avif',
-        'image/svg+xml',
-        'text/xml',
-        'application/xml',
     ];
 
     /** Subdirectory under the flarum-assets disk. */
@@ -81,25 +81,22 @@ class UploadFallbackImageController implements RequestHandlerInterface
         $finfo = new \finfo(FILEINFO_MIME_TYPE);
         $detectedMime = $finfo->buffer($contents) ?: '';
 
-        if ($ext === 'svg') {
-            // SVG: ensure it parses-ish (starts with <svg or <?xml ... <svg)
-            $head = ltrim(substr($contents, 0, 512));
-            if (stripos($head, '<svg') === false && stripos($head, '<?xml') === false) {
-                return new JsonResponse(['error' => 'Invalid SVG file.'], 415);
-            }
-            // Block scripts inside SVG (basic protection)
-            if (preg_match('/<script\b/i', $contents)) {
-                return new JsonResponse(['error' => 'SVG with embedded script is not allowed.'], 415);
-            }
-        } else {
-            if (!in_array($detectedMime, self::ALLOWED_MIMES, true)) {
-                return new JsonResponse(['error' => 'Unsupported file type (MIME: ' . $detectedMime . ').'], 415);
-            }
-            // For raster images, validate via getimagesizefromstring
-            $info = @getimagesizefromstring($contents);
-            if ($info === false) {
-                return new JsonResponse(['error' => 'File is not a valid image.'], 415);
-            }
+        // Raster images ONLY. SVG is intentionally not accepted: it is an XML
+        // document that can execute script through many vectors (onload= and
+        // other event attributes, <use href="javascript:...">, <foreignObject>,
+        // CSS expression(), …), and the fallback image is served from a public
+        // URL — so a crafted SVG would be stored XSS reachable by every visitor.
+        // The fallback only needs a raster placeholder, so we drop SVG entirely
+        // rather than attempt to sanitise an attacker-controlled XML document.
+        if (!in_array($detectedMime, self::ALLOWED_MIMES, true)) {
+            return new JsonResponse(['error' => 'Unsupported file type (MIME: ' . $detectedMime . ').'], 415);
+        }
+        // getimagesizefromstring() only recognises raster formats, so it is also
+        // a backstop that rejects any SVG/XML that slipped past the extension and
+        // MIME checks above.
+        $info = @getimagesizefromstring($contents);
+        if ($info === false) {
+            return new JsonResponse(['error' => 'File is not a valid image.'], 415);
         }
 
         // Generate safe filename: {timestamp}-{rand}-{slug}.{ext}

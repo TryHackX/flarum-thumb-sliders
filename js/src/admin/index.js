@@ -1,33 +1,27 @@
 import app from 'flarum/admin/app';
+import { extend } from 'flarum/common/extend';
+import ResetExtensionSettingsModal from 'flarum/admin/components/ResetExtensionSettingsModal';
 import SupportModal from './components/SupportModal';
 import FallbackImageManager from './components/FallbackImageManager';
 import AvatarSettings from './components/AvatarSettings';
 
-// Add Flarum's standard `Button--inverted` to the Cancel button in core's
-// "Reset extension settings" modal so it doesn't render as a plain
-// borderless button. We use a MutationObserver instead of extending the
-// modal's prototype because the modal class is lazy-loaded by core and
-// not statically importable through `flarum/admin/components/...` at
-// module load. Each TryHackX extension registers this independently;
-// repeated classList.add of the same class is a no-op.
+// Give the Cancel button in core's "Reset extension settings" modal Flarum's
+// standard `Button--inverted` styling (core renders it as a plain borderless
+// button). The modal is registered in the admin component registry, so we
+// extend it directly instead of running a whole-document MutationObserver for
+// the entire admin session. Guarded in case a future core build drops it.
 app.initializers.add('tryhackx-thumb-sliders-cancel-inverted', () => {
-  const invertCancel = (modal) => {
-    const cancel = modal.querySelector('.Form-controls .Button:not(.Button--danger):not(.Button--primary)');
+  if (!ResetExtensionSettingsModal || !ResetExtensionSettingsModal.prototype) return;
+
+  const invertCancel = function () {
+    const root = this.element;
+    if (!root) return;
+    const cancel = root.querySelector('.Form-controls .Button:not(.Button--danger):not(.Button--primary)');
     if (cancel) cancel.classList.add('Button--inverted');
   };
-  const observer = new MutationObserver((mutations) => {
-    for (const mut of mutations) {
-      for (const node of mut.addedNodes) {
-        if (node.nodeType !== 1) continue;
-        if (node.classList && node.classList.contains('ResetExtensionSettingsModal')) {
-          invertCancel(node);
-        } else if (node.querySelectorAll) {
-          node.querySelectorAll('.ResetExtensionSettingsModal').forEach(invertCancel);
-        }
-      }
-    }
-  });
-  observer.observe(document.body, { childList: true, subtree: true });
+
+  extend(ResetExtensionSettingsModal.prototype, 'oncreate', invertCancel);
+  extend(ResetExtensionSettingsModal.prototype, 'onupdate', invertCancel);
 });
 
 app.initializers.add('tryhackx-thumb-sliders-support', () => {

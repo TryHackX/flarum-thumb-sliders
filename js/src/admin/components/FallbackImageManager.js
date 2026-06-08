@@ -1,6 +1,7 @@
 import app from 'flarum/admin/app';
 import Component from 'flarum/common/Component';
 import LoadingIndicator from 'flarum/common/components/LoadingIndicator';
+import DeleteFallbackImageModal from './DeleteFallbackImageModal';
 
 /**
  * FallbackImageManager - Admin gallery component for managing fallback images.
@@ -40,7 +41,7 @@ export default class FallbackImageManager extends Component {
             <span>{app.translator.trans('tryhackx-thumb-sliders.admin.fallback.upload_button')}</span>
             <input
               type="file"
-              accept="image/webp,image/jpeg,image/png,image/gif,image/bmp,image/avif,image/svg+xml"
+              accept="image/webp,image/jpeg,image/png,image/gif,image/bmp,image/avif"
               disabled={this.uploading}
               onchange={(e) => this.uploadFile(e)}
               style="display: none;"
@@ -83,7 +84,7 @@ export default class FallbackImageManager extends Component {
                   <button
                     type="button"
                     className="ThumbSlidersFallbackManager__item-delete"
-                    onclick={(e) => { e.stopPropagation(); this.deleteFile(file.filename); }}
+                    onclick={(e) => { e.stopPropagation(); this.deleteFile(file); }}
                     title={app.translator.trans('tryhackx-thumb-sliders.admin.fallback.delete')}
                   >
                     <i className="fas fa-times" />
@@ -159,10 +160,19 @@ export default class FallbackImageManager extends Component {
     });
   }
 
-  deleteFile(filename) {
-    if (!confirm(app.translator.trans('tryhackx-thumb-sliders.admin.fallback.confirm_delete'))) return;
+  deleteFile(file) {
+    // Confirm via a Flarum modal (not a native confirm() alert) so the prompt
+    // matches the rest of the UI and can preview the image being removed.
+    app.modal.show(DeleteFallbackImageModal, {
+      file,
+      ondelete: () => this.performDelete(file.filename),
+    });
+  }
 
-    app.request({
+  // Does the actual DELETE request and mirrors the local state. Returns the
+  // promise so the modal can drive its loading state / surface errors.
+  performDelete(filename) {
+    return app.request({
       method: 'DELETE',
       url: app.forum.attribute('apiUrl') + '/thumb-sliders/uploads/' + encodeURIComponent(filename),
     }).then(() => {
@@ -171,9 +181,6 @@ export default class FallbackImageManager extends Component {
       if (app.data.settings['tryhackx-thumb-sliders.fallback_image'] === filename) {
         app.data.settings['tryhackx-thumb-sliders.fallback_image'] = '';
       }
-      m.redraw();
-    }).catch((err) => {
-      this.error = this.extractError(err);
       m.redraw();
     });
   }

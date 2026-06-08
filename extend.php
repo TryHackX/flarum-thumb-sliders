@@ -4,10 +4,8 @@ namespace TryHackX\ThumbSliders;
 
 use Flarum\Extend;
 use Flarum\Api\Resource\DiscussionResource;
-use Flarum\Api\Schema;
 use Flarum\Api\Endpoint;
-use Flarum\Api\Context;
-use Flarum\Discussion\Discussion;
+use TryHackX\ThumbSliders\Api\DiscussionThumbFields;
 use TryHackX\ThumbSliders\Api\Controller\UploadFallbackImageController;
 use TryHackX\ThumbSliders\Api\Controller\ListFallbackImagesController;
 use TryHackX\ThumbSliders\Api\Controller\DeleteFallbackImageController;
@@ -35,48 +33,9 @@ return [
     new Extend\Locales(__DIR__ . '/locale'),
 
     (new Extend\ApiResource(DiscussionResource::class))
-        // Add thumbImages array attribute to Discussion API response
-        ->fields(fn () => [
-            Schema\Arr::make('thumbImages')
-                ->get(function (Discussion $discussion, Context $context) {
-                    try {
-                        $firstPost = $discussion->firstPost;
-
-                        if (!$firstPost || $firstPost->type !== 'comment') {
-                            return [];
-                        }
-
-                        // Get the raw XML content from the database
-                        $rawXml = $firstPost->getRawOriginal('content');
-
-                        if (empty($rawXml)) {
-                            return [];
-                        }
-
-                        // Get settings
-                        $settings = resolve('flarum.settings');
-                        $maxImages = (int) $settings->get('tryhackx-thumb-sliders.max_images', 10);
-
-                        // Try fast XML extraction first (no rendering needed)
-                        $images = ImageExtractor::extractFromXml($rawXml, $maxImages);
-
-                        // If no images found via XML, fall back to full HTML rendering
-                        if (empty($images)) {
-                            $formatter = resolve(\Flarum\Formatter\Formatter::class);
-                            $html = $formatter->render($rawXml, $firstPost);
-
-                            $minSize = (int) $settings->get('tryhackx-thumb-sliders.min_img_size', 50);
-                            $maxSize = (int) $settings->get('tryhackx-thumb-sliders.max_img_size', 5000);
-
-                            $images = ImageExtractor::extract($html, $minSize, $maxSize, $minSize, $maxSize, $maxImages);
-                        }
-
-                        return $images;
-                    } catch (\Throwable $e) {
-                        return [];
-                    }
-                }),
-        ])
+        // Add the thumbImages array attribute (definition + extraction live in a
+        // dedicated, constructor-injected class — see DiscussionThumbFields).
+        ->fields(DiscussionThumbFields::class)
         // Ensure firstPost is always included in discussion list API responses
         ->endpoint(Endpoint\Index::class, function (Endpoint\Index $endpoint) {
             return $endpoint->addDefaultInclude(['firstPost']);
@@ -102,6 +61,12 @@ return [
         ->serializeToForum('tryhackxAvatarModeMobile', 'tryhackx-avatars.mode_mobile', $normalizeAvatarMode)
         ->serializeToForum('thumbSlidersFallbackImageUrl', 'tryhackx-thumb-sliders.fallback_image', function ($value) {
             if (empty($value)) {
+                return '';
+            }
+            // Defence-in-depth: never emit a non-raster fallback URL (a legacy
+            // .svg could linger in the setting even though uploads now reject SVG).
+            $ext = strtolower(pathinfo($value, PATHINFO_EXTENSION));
+            if (!in_array($ext, ['webp', 'jpg', 'jpeg', 'png', 'gif', 'bmp', 'avif'], true)) {
                 return '';
             }
             try {

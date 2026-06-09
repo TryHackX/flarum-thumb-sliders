@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.2] - 2026-06-09
+
+### Fixed
+- **`Uncaught TypeError: Cannot read properties of null (reading
+  'querySelectorAll')` while searching quickly.** A slider can be unmounted (the
+  discussion list re-renders as you type in the filters) while one of its images
+  is still loading; the late `Image.onload` then ran against the already
+  cleaned-up `this.dom`. The image-load callbacks now bail out when the slider
+  has been removed.
+
+### Performance
+- **Thumbnails no longer re-probe / re-fade when the list re-renders.** A
+  module-level cache remembers image URLs that have already loaded this session,
+  so a remounted slider (e.g. while live-searching the discussion list) shows the
+  cached image instantly — no extra probe `Image()`, no loading fade, no
+  perceived re-download of images that were already on screen a moment ago.
+
 ## [2.1.1] - 2026-06-08
 
 > Security, performance, robustness and i18n fixes. No new settings or migrations.

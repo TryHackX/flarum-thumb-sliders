@@ -10,6 +10,13 @@ import Component from 'flarum/common/Component';
  * Uses direct DOM manipulation (Flarum SubtreeRetainer blocks m.redraw).
  * IntersectionObserver for lazy loading.
  */
+// Module-level cache of image URLs that have already loaded successfully in this
+// session, shared across all slider instances and remounts. When the discussion
+// list re-renders (e.g. live search typing), a remounted slider can show an
+// already-seen image instantly from the browser cache — no probe Image(), no
+// re-fade, no perceived re-download.
+const loadedUrlCache = new Set();
+
 export default class ThumbSlider extends Component {
   oninit(vnode) {
     super.oninit(vnode);
@@ -141,10 +148,27 @@ export default class ThumbSlider extends Component {
     const imgEl = firstItem.querySelector('.ThumbSlider__img');
     if (!imgEl) return;
 
+    const url = this.images[0];
+
+    // Already loaded earlier this session — show instantly from the browser
+    // cache, skipping the probe Image() and the loading fade.
+    if (loadedUrlCache.has(url)) {
+      this.loadedImages.add(0);
+      imgEl.src = url;
+      this.dom.classList.remove('ThumbSlider--loading');
+      if (this.images.length > 1) {
+        this.preloadImage(1);
+      }
+      return;
+    }
+
     const img = new Image();
     img.onload = () => {
+      // The slider may have been removed (list re-rendered) while loading.
+      if (!this.dom) return;
+      loadedUrlCache.add(url);
       this.loadedImages.add(0);
-      imgEl.src = this.images[0];
+      imgEl.src = url;
       this.dom.classList.remove('ThumbSlider--loading');
 
       if (this.images.length > 1) {
@@ -154,7 +178,7 @@ export default class ThumbSlider extends Component {
     img.onerror = () => {
       this.handleImageLoadFailure();
     };
-    img.src = this.images[0];
+    img.src = url;
   }
 
   handleImageLoadFailure() {
@@ -202,16 +226,33 @@ export default class ThumbSlider extends Component {
   preloadImage(index) {
     if (index >= this.images.length || this.loadedImages.has(index)) return;
 
-    const img = new Image();
-    img.onload = () => {
+    const url = this.images[index];
+
+    // Push the resolved URL into the matching slide. Guards `this.dom` because
+    // the slider can be unmounted (live search re-render) while the image is
+    // still loading — without this the late onload threw
+    // "Cannot read properties of null (reading 'querySelectorAll')".
+    const apply = () => {
+      if (!this.dom) return;
       this.loadedImages.add(index);
       const items = this.dom.querySelectorAll('.ThumbSlider__item');
       if (items[index]) {
         const imgEl = items[index].querySelector('.ThumbSlider__img');
-        if (imgEl) imgEl.src = this.images[index];
+        if (imgEl) imgEl.src = url;
       }
     };
-    img.src = this.images[index];
+
+    if (loadedUrlCache.has(url)) {
+      apply();
+      return;
+    }
+
+    const img = new Image();
+    img.onload = () => {
+      loadedUrlCache.add(url);
+      apply();
+    };
+    img.src = url;
   }
 
   startAutoplay() {

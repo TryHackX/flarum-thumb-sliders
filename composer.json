@@ -1,19 +1,34 @@
 {
     "name": "tryhackx/flarum-thumb-sliders",
-    "description": "Displays a thumbnail image slider on the left side of each discussion in the discussion list, using images found in the first post.",
-    "keywords": ["flarum", "extension", "thumbnails", "slider", "images"],
+    "description": "Extracts images automatically from the first post to display an animated, lazy-loaded thumbnail image slider in the Flarum discussion list using a shared modular layout structure.",
+    "keywords": [
+        "flarum",
+        "extension",
+        "thumbnails",
+        "slider",
+        "carousel",
+        "images",
+        "lazy-load",
+        "avatar-control",
+        "layout-module"
+    ],
     "type": "flarum-extension",
     "license": "MIT",
     "require": {
         "php": "^8.3",
-        "flarum/core": "^2.0"
+        "flarum/core": "^2.0.0-rc.1"
     },
     "authors": [
         {
             "name": "TryHackX",
-            "email": "contact@tryhackx.org"
+            "email": "contact@tryhackx.org",
+            "homepage": "https://github.com/TryHackX"
         }
     ],
+    "support": {
+        "issues": "https://github.com/TryHackX/flarum-thumb-sliders/issues",
+        "source": "https://github.com/TryHackX/flarum-thumb-sliders"
+    },
     "autoload": {
         "psr-4": {
             "TryHackX\\ThumbSliders\\": "src/"
@@ -25,8 +40,8 @@
             "category": "feature",
             "icon": {
                 "name": "fas fa-images",
-                "backgroundColor": "#e74c3c",
-                "color": "#fff"
+                "color": "#ffffff",
+                "backgroundColor": "#e74c3c"
             }
         },
         "flarum-cli": {
@@ -38,5 +53,7 @@
                 "css": true
             }
         }
-    }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
 }

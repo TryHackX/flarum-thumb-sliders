@@ -10,10 +10,10 @@ use Laminas\Diactoros\Response\JsonResponse;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\RequestHandlerInterface;
+use TryHackX\ThumbSliders\FallbackStorage;
 
 class DeleteFallbackImageController implements RequestHandlerInterface
 {
-    const STORAGE_DIR = 'extensions/tryhackx-thumb-sliders/fallback';
     const SETTING_ACTIVE = 'tryhackx-thumb-sliders.fallback_image';
 
     protected FilesystemFactory $filesystem;
@@ -42,7 +42,7 @@ class DeleteFallbackImageController implements RequestHandlerInterface
         }
 
         $disk = $this->filesystem->disk('flarum-assets');
-        $path = self::STORAGE_DIR . '/' . $filename;
+        $path = FallbackStorage::DIR . '/' . $filename;
 
         if (!$disk->exists($path)) {
             return new JsonResponse(['error' => 'File not found.'], 404);

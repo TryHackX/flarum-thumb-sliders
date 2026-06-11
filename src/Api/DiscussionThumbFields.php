@@ -7,6 +7,7 @@ use Flarum\Api\Schema;
 use Flarum\Discussion\Discussion;
 use Flarum\Formatter\Formatter;
 use Flarum\Settings\SettingsRepositoryInterface;
+use Illuminate\Contracts\Cache\Repository as CacheRepository;
 use Psr\Log\LoggerInterface;
 use TryHackX\ThumbSliders\ImageExtractor;
 
@@ -24,7 +25,8 @@ class DiscussionThumbFields
     public function __construct(
         protected SettingsRepositoryInterface $settings,
         protected Formatter $formatter,
-        protected LoggerInterface $log
+        protected LoggerInterface $log,
+        protected CacheRepository $cache
     ) {
     }
 
@@ -42,6 +44,16 @@ class DiscussionThumbFields
     protected function imagesFor(Discussion $discussion): array
     {
         try {
+            // Honour the extension's own on/off switch: when disabled the frontend
+            // renders no slider, so the extraction below would be pure waste (CPU
+            // on every row + empty arrays in the payload). Mirror the frontend's
+            // truthiness check — Flarum persists the toggle as a '1'/'0' string,
+            // while the registered default is a real bool true.
+            $enabled = $this->settings->get('tryhackx-thumb-sliders.enabled', true);
+            if ($enabled === false || $enabled === '0' || $enabled === 0 || $enabled === 'false') {
+                return [];
+            }
+
             $firstPost = $discussion->firstPost;
 
             if (! $firstPost || $firstPost->type !== 'comment') {
@@ -66,12 +78,23 @@ class DiscussionThumbFields
             // skipping the expensive, uncached render for it is free. This is what
             // turned a per-row render on text-only discussion lists into a no-op.
             if (empty($images) && strncmp(ltrim($rawXml), '<t', 2) !== 0) {
-                $html = $this->formatter->render($rawXml, $firstPost);
-
                 $minSize = (int) $this->settings->get('tryhackx-thumb-sliders.min_img_size', 50);
                 $maxSize = (int) $this->settings->get('tryhackx-thumb-sliders.max_img_size', 5000);
 
-                $images = ImageExtractor::extract($html, $minSize, $maxSize, $minSize, $maxSize, $maxImages);
+                // Cache ONLY the expensive render+extract. The key is fully
+                // determined by the post's parsed content plus the size thresholds
+                // that affect the result, so it can never go stale: an edit yields
+                // new XML (new key) and a settings change yields a new key; old
+                // keys expire by TTL. The cheap XML fast-path above still runs on
+                // every request and short-circuits for any post that already has an
+                // <IMG>/<UPL>, so only rich, image-free posts ever reach here.
+                $cacheKey = 'tryhackx-ts:img:' . md5($rawXml . '|' . $minSize . '|' . $maxSize . '|' . $maxImages);
+
+                $images = $this->cache->remember($cacheKey, 86400, function () use ($rawXml, $firstPost, $minSize, $maxSize, $maxImages) {
+                    $html = $this->formatter->render($rawXml, $firstPost);
+
+                    return ImageExtractor::extract($html, $minSize, $maxSize, $minSize, $maxSize, $maxImages);
+                });
             }
 
             return $images;

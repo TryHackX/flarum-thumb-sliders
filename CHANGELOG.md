@@ -7,6 +7,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.4] - 2026-06-12
+
+> Backend performance & internal refactor only. **No** frontend or layout changes
+> (`discussionListLayout.js` untouched, `LAYOUT_VERSION` stays 5), no migrations,
+> no new settings — `js/dist` does **not** need rebuilding.
+
+### Performance
+- **`thumbImages` no longer forces `firstPost` to be _serialized_ on every
+  discussion-list row.** The extension registered `addDefaultInclude(['firstPost'])`,
+  which not only eager-loads the relation our extractor needs but also serializes
+  the entire first post — triggering a per-row `contentHtml` `Formatter::render()`
+  in core's `PostResource` and enlarging the payload, neither of which the frontend
+  uses (it reads only the `thumbImages` attribute). It now `eagerLoad`s the
+  relation instead, so it is in memory for the extractor (no N+1) without being
+  rendered or sent to the client. (Note: `flarum/sticky` independently
+  force-includes `firstPost`, so on forums with Sticky enabled the first post is
+  still serialized by core — but Thumb Sliders is no longer a second cause of it.)
+- **The image-free slow-path render is now cached.** When the fast XML scan finds
+  no image in a _rich_ (`<r>`) first post, the extractor falls back to a full s9e
+  render to catch embed/oembed thumbnails. That result is now cached, keyed by a
+  hash of the post's parsed content plus the size thresholds that affect the
+  outcome, so repeat list loads of the same image-free rich posts skip the render.
+  The key is content-derived, so an edit or a settings change yields a fresh key —
+  the cache can never return a stale result.
+- **Extraction is skipped entirely when the slider is turned off.** When
+  `tryhackx-thumb-sliders.enabled` is false the frontend renders no slider, so
+  `imagesFor()` now returns immediately instead of scanning (and possibly
+  rendering) every first post.
+
+### Changed
+- **Internal — single source of truth for the fallback storage path.** The
+  `extensions/tryhackx-thumb-sliders/fallback` directory string was duplicated in
+  the three upload/list/delete controllers and the settings serializer; it now
+  lives once in `TryHackX\ThumbSliders\FallbackStorage::DIR`. No behavioural change.
+- Documented why `resolve()` is unavoidable inside the `serializeToForum` transform
+  closure (a Settings transform is a plain closure with no DI entry point).
+
+## [2.1.3] - 2026-06-11
+
+> Re-publish of the 2.1.2 fixes (late-`onload` null guard + image-URL cache).
+> No functional changes beyond the 2.1.2 entry below.
+
 ## [2.1.2] - 2026-06-09
 
 ### Fixed

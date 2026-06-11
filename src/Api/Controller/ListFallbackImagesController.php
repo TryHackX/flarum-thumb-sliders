@@ -8,11 +8,10 @@ use Laminas\Diactoros\Response\JsonResponse;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\RequestHandlerInterface;
+use TryHackX\ThumbSliders\FallbackStorage;
 
 class ListFallbackImagesController implements RequestHandlerInterface
 {
-    const STORAGE_DIR = 'extensions/tryhackx-thumb-sliders/fallback';
-
     protected FilesystemFactory $filesystem;
 
     public function __construct(FilesystemFactory $filesystem)
@@ -28,8 +27,8 @@ class ListFallbackImagesController implements RequestHandlerInterface
 
         $items = [];
         try {
-            if ($disk->exists(self::STORAGE_DIR)) {
-                $files = $disk->files(self::STORAGE_DIR);
+            if ($disk->exists(FallbackStorage::DIR)) {
+                $files = $disk->files(FallbackStorage::DIR);
                 foreach ($files as $path) {
                     $filename = basename($path);
                     // Skip hidden / unsafe entries

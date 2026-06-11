@@ -9,6 +9,7 @@ use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\UploadedFileInterface;
 use Psr\Http\Server\RequestHandlerInterface;
+use TryHackX\ThumbSliders\FallbackStorage;
 
 class UploadFallbackImageController implements RequestHandlerInterface
 {
@@ -32,9 +33,6 @@ class UploadFallbackImageController implements RequestHandlerInterface
         'image/x-ms-bmp',
         'image/avif',
     ];
-
-    /** Subdirectory under the flarum-assets disk. */
-    const STORAGE_DIR = 'extensions/tryhackx-thumb-sliders/fallback';
 
     protected FilesystemFactory $filesystem;
 
@@ -110,7 +108,7 @@ class UploadFallbackImageController implements RequestHandlerInterface
         $filename = time() . '-' . bin2hex(random_bytes(4)) . '-' . $slug . '.' . $ext;
 
         $disk = $this->filesystem->disk('flarum-assets');
-        $path = self::STORAGE_DIR . '/' . $filename;
+        $path = FallbackStorage::DIR . '/' . $filename;
 
         try {
             $disk->put($path, $contents);

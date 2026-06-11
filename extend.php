@@ -6,6 +6,7 @@ use Flarum\Extend;
 use Flarum\Api\Resource\DiscussionResource;
 use Flarum\Api\Endpoint;
 use TryHackX\ThumbSliders\Api\DiscussionThumbFields;
+use TryHackX\ThumbSliders\FallbackStorage;
 use TryHackX\ThumbSliders\Api\Controller\UploadFallbackImageController;
 use TryHackX\ThumbSliders\Api\Controller\ListFallbackImagesController;
 use TryHackX\ThumbSliders\Api\Controller\DeleteFallbackImageController;
@@ -36,9 +37,15 @@ return [
         // Add the thumbImages array attribute (definition + extraction live in a
         // dedicated, constructor-injected class — see DiscussionThumbFields).
         ->fields(DiscussionThumbFields::class)
-        // Ensure firstPost is always included in discussion list API responses
+        // Eager-load firstPost for the thumbImages getter WITHOUT serializing it.
+        // The core Index endpoint does not include firstPost; addDefaultInclude
+        // would not only eager-load it but ALSO serialize it on every row, which
+        // forces a per-row contentHtml Formatter::render() (PostResource) and
+        // bloats the payload. The frontend reads only the `thumbImages` attribute,
+        // so eagerLoad gives imagesFor() the in-memory relation (no N+1) without
+        // the render / payload cost.
         ->endpoint(Endpoint\Index::class, function (Endpoint\Index $endpoint) {
-            return $endpoint->addDefaultInclude(['firstPost']);
+            return $endpoint->eagerLoad(['firstPost']);
         }),
 
     // Register default settings
@@ -70,9 +77,13 @@ return [
                 return '';
             }
             try {
+                // resolve() is unavoidable here: a Settings `serializeToForum`
+                // transform is a plain closure with no DI entry point (unlike
+                // ->fields() classes), so the filesystem factory cannot be
+                // constructor-injected at this position.
                 $factory = resolve(\Illuminate\Contracts\Filesystem\Factory::class);
                 $disk = $factory->disk('flarum-assets');
-                $path = 'extensions/tryhackx-thumb-sliders/fallback/' . $value;
+                $path = FallbackStorage::DIR . '/' . $value;
                 return $disk->exists($path) ? $disk->url($path) : '';
             } catch (\Throwable $e) {
                 return '';

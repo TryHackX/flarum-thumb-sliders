@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.5] - 2026-06-12
+
+> Conventions / documentation pass only. **No** behavioural, frontend, layout,
+> migration-logic, or settings changes — `discussionListLayout.js` untouched
+> (`LAYOUT_VERSION` stays 5), `js/dist` does **not** need rebuilding. Cutting this
+> release also gives static analysers a version that already contains the 2.1.4
+> backend fixes (eagerLoad firstPost, slow-path cache, fallback-path DRY) to scan.
+
+### Changed
+- Documented why `resolve()` is unavoidable inside the shared-avatar seed
+  migration's `up` closure (migration closures have no constructor-injection
+  entry point) — mirroring the same note already added for the `serializeToForum`
+  transform closure in 2.1.4. No runtime change; the migration already ran on
+  existing installs and its logic is unchanged.
+
 ## [2.1.4] - 2026-06-12
 
 > Backend performance & internal refactor only. **No** frontend or layout changes

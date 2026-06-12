@@ -15,6 +15,8 @@ use Flarum\Settings\SettingsRepositoryInterface;
 
 return [
     'up' => function () {
+        // Migration up/down closures do not support constructor injection, so
+        // resolve() is the only way to reach the settings repository here.
         /** @var SettingsRepositoryInterface $settings */
         $settings = resolve(SettingsRepositoryInterface::class);
 

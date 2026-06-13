@@ -7,6 +7,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.6] - 2026-06-13
+
+> Frontend robustness pass. Rebuilds `js/dist` (forum + admin). **No** backend,
+> migration, or settings changes; the shared `discussionListLayout.js` /
+> `AvatarSettings.js` are **untouched** (`LAYOUT_VERSION` stays 5), so no
+> coordination with `flarum-topic-rating` is needed.
+
+### Fixed
+- **The thumbnail box is no longer rendered until its first image has actually
+  loaded.** Previously the slider painted its box (and reserved its tall, poster
+  -shaped height) immediately and only hid it once the image failed — so a
+  discussion whose `[img]` is invalid, removed, or hosted somewhere slow/down
+  flashed an empty loading box on every page refresh or homepage search before it
+  vanished. The slider now starts hidden (`--probing` ⇒ `display:none`, taking no
+  space and painting nothing) and is **revealed only when its first image
+  successfully loads** — exactly the "wait for the first image, then render the
+  thumb, then load the rest" flow. A broken or slow-failing image therefore never
+  shows a box at all: the row simply renders without a thumbnail.
+  - This is fully effective even right after a hard refresh (no dependency on an
+    in-session cache). A slow-but-valid image just appears a moment later instead
+    of reserving an empty box up front.
+  - Lazy-loading is preserved: the (hidden) slider can't be observed directly, so
+    the IntersectionObserver now watches the visible discussion row instead, and
+    the first image is fetched only when the row nears the viewport.
+  - The old loading **spinner** has been removed entirely (no `--loading` state /
+    keyframes) — there is no longer any loading indicator before the first image,
+    per the requested behaviour.
+- **Broken images are remembered for the session.** A URL that fails to load is
+  cached (alongside the existing success cache) and dropped up front on the next
+  render, so a discussion whose image 404s no longer re-probes (and a slider with
+  several images shows its remaining good ones straight away).
+- **`preloadImage()` now has an `onerror` handler** (previously only `onload`). A
+  later slide whose image fails is recorded as broken instead of being silently
+  re-probed on every list re-render and left blank in the autoplay rotation.
+- **Admin “copy address” now reports failure and falls back.** `SupportModal`'s
+  copy button only chained `.then()` on `navigator.clipboard.writeText()`; on a
+  plain-HTTP admin panel (or when the browser denies clipboard access) the
+  rejection was swallowed and the button gave no feedback. It now falls back to a
+  legacy `execCommand('copy')` path and shows a failure icon if that fails too.
+
 ## [2.1.5] - 2026-06-12
 
 > Conventions / documentation pass only. **No** behavioural, frontend, layout,

@@ -71,15 +71,59 @@ export default class SupportModal extends Modal {
 
   copyAddress(e, address) {
     const btn = e.currentTarget;
-    navigator.clipboard.writeText(address).then(() => {
-      const icon = btn.querySelector('i');
-      icon.className = 'fas fa-check';
-      btn.classList.add('SupportModal-copyBtn--copied');
 
+    const showCopied = () => {
+      const icon = btn.querySelector('i');
+      if (icon) icon.className = 'fas fa-check';
+      btn.classList.add('SupportModal-copyBtn--copied');
       setTimeout(() => {
-        icon.className = 'fas fa-copy';
+        const ic = btn.querySelector('i');
+        if (ic) ic.className = 'fas fa-copy';
         btn.classList.remove('SupportModal-copyBtn--copied');
       }, 2000);
-    });
+    };
+
+    const showFailed = () => {
+      const icon = btn.querySelector('i');
+      if (icon) icon.className = 'fas fa-times';
+      setTimeout(() => {
+        const ic = btn.querySelector('i');
+        if (ic) ic.className = 'fas fa-copy';
+      }, 2000);
+    };
+
+    // navigator.clipboard only exists in a secure context; on a plain-HTTP admin
+    // panel (or when the browser blocks clipboard access) writeText() rejects.
+    // Fall back to the legacy execCommand path and only show the failure icon if
+    // that fails too — previously the rejection was swallowed and the button
+    // gave the admin no feedback at all that the copy had not happened.
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(address).then(showCopied).catch(() => {
+        if (this.legacyCopy(address)) showCopied();
+        else showFailed();
+      });
+    } else if (this.legacyCopy(address)) {
+      showCopied();
+    } else {
+      showFailed();
+    }
+  }
+
+  legacyCopy(text) {
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.setAttribute('readonly', '');
+      ta.style.position = 'fixed';
+      ta.style.top = '-1000px';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      const ok = document.execCommand('copy');
+      document.body.removeChild(ta);
+      return ok;
+    } catch (e) {
+      return false;
+    }
   }
 }

@@ -2,23 +2,23 @@
   position: relative;
   overflow: hidden;
   border-radius: 4px;
-  box-shadow: 0 10px 30px -12px rgba(0, 0, 0, 0.8);
-  background: rgba(0, 0, 0, 0.08);
   flex-shrink: 0;
 
-  &--loading::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 20px;
-    height: 20px;
-    border: 2px solid rgba(255, 255, 255, 0.15);
-    border-top-color: var(--primary-color, #4D698E);
-    border-radius: 50%;
-    animation: thumbSliderSpin 0.6s linear infinite;
-    z-index: 5;
+  // While probing the first image the slider shows NOTHING and takes NO space —
+  // no box, no spinner, no reserved height. It is revealed (JS removes
+  // `--probing`, adds `--ready`) only once the first image has actually loaded,
+  // so a broken or slow-failing image never flashes a loading box, even right
+  // after a page refresh. A broken image in mode 'none' simply stays hidden.
+  &--probing {
+    display: none;
+  }
+
+  // The card background + shadow appear only once there is something to show:
+  // a loaded image (--ready) or a fallback.
+  &--ready,
+  &--fallback {
+    background: rgba(0, 0, 0, 0.08);
+    box-shadow: 0 10px 30px -12px rgba(0, 0, 0, 0.8);
   }
 }
 
@@ -74,10 +74,14 @@
   z-index: 10;
 }
 
-.ThumbSlider--fallback {
-  // Static fallback variants don't show the loading spinner
-  &::after { display: none !important; }
+// The counter is meaningless until the first image is actually showing — keep
+// it hidden during the silent probe so it doesn't flash over a transparent box.
+.ThumbSlider:not(.ThumbSlider--ready) .ThumbSlider__counter {
+  display: none;
+}
 
+.ThumbSlider--fallback {
+  // Static fallback variants don't animate their image.
   .ThumbSlider__img {
     transform: none;
     transition: none;
@@ -293,11 +297,10 @@
   }
 }
 
-[data-theme^="dark"] .ThumbSlider {
+// Same gating as the light theme: the box shows only once there is content
+// (loaded image or fallback), never while probing the first image.
+[data-theme^="dark"] .ThumbSlider--ready,
+[data-theme^="dark"] .ThumbSlider--fallback {
   background: rgba(255, 255, 255, 0.06);
   box-shadow: 0 10px 30px -12px rgba(0, 0, 0, 1);
-}
-
-@keyframes thumbSliderSpin {
-  to { transform: rotate(360deg); }
 }

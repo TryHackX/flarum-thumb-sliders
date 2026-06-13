@@ -8,7 +8,9 @@ import Component from 'flarum/common/Component';
  *   autoplaySpeed: 1200, with scale(1.2)->scale(1) on active
  *
  * Uses direct DOM manipulation (Flarum SubtreeRetainer blocks m.redraw).
- * IntersectionObserver for lazy loading.
+ * Lazy-loads via IntersectionObserver. The slider stays hidden until its FIRST
+ * image actually loads, then reveals itself — so a broken or slow-failing image
+ * never flashes an empty loading box (see the `--probing` / reveal() flow).
  */
 // Module-level cache of image URLs that have already loaded successfully in this
 // session, shared across all slider instances and remounts. When the discussion
@@ -17,13 +19,29 @@ import Component from 'flarum/common/Component';
 // re-fade, no perceived re-download.
 const loadedUrlCache = new Set();
 
+// Companion to loadedUrlCache: URLs that FAILED to load this session (404,
+// removed attachment, blocked/rate-limited host, …). Remembering them lets an
+// in-session remount (live-search re-render) skip re-probing a URL we already
+// know is dead, and lets oninit drop such images up front so a multi-image
+// slider shows only its working ones. It is a pure efficiency/coordination cache
+// (cleared on a hard reload); what actually prevents the loading-box flash is the
+// `--probing` / reveal() flow, which never paints a box until an image loads.
+const failedUrlCache = new Set();
+
 export default class ThumbSlider extends Component {
   oninit(vnode) {
     super.oninit(vnode);
 
-    this.images = (this.attrs.images || []).map(url => url.replace(/\\/g, '/'));
+    // Drop images already known to be broken this session, so an in-session
+    // re-render (live search) doesn't re-probe a dead URL; a multi-image slider
+    // then shows only its still-working images.
+    this.images = (this.attrs.images || [])
+      .map(url => url.replace(/\\/g, '/'))
+      .filter(url => !failedUrlCache.has(url));
     this.currentIndex = 0;
     this.isVisible = false;
+    this.revealed = false;
+    this.firstLoadStarted = false;
     this.loadedImages = new Set();
     this.autoplayTimer = null;
     this.outgoingTimer = null;
@@ -39,8 +57,11 @@ export default class ThumbSlider extends Component {
       return this.renderFallback(sliderWidth);
     }
 
+    // Starts in the `--probing` state (display:none): it occupies no space and
+    // paints no box until the first image actually loads (see loadFirstImage /
+    // reveal). A broken or slow-failing image therefore never flashes a box.
     return (
-      <div className="ThumbSlider ThumbSlider--loading" style={{ width: sliderWidth + 'px' }}>
+      <div className="ThumbSlider ThumbSlider--probing" style={{ width: sliderWidth + 'px' }}>
         <div className="ThumbSlider__track">
           {this.images.map((src, i) => (
             <div className={'ThumbSlider__item' + (i === 0 ? ' ThumbSlider__item--active' : '')} key={i}>
@@ -90,18 +111,26 @@ export default class ThumbSlider extends Component {
     super.oncreate(vnode);
     this.dom = vnode.dom;
 
-    // Mark the row so coordinating extensions (e.g. homepage-blocks' mobile
-    // fallback) can tell a thumb is present via `:not(.has-ThumbSlider)`.
-    const contentEl = this.dom.closest('.DiscussionListItem-content');
-    if (contentEl) {
-      contentEl.classList.add('has-ThumbSlider');
+    // view() can render nothing (null) when there are no images and the fallback
+    // mode is 'none' — bail before touching the DOM.
+    if (!this.dom) return;
+
+    // Static fallback variants (no extracted images) are shown immediately and
+    // mark the row so coordinating extensions (e.g. homepage-blocks) see a thumb.
+    const isFallback = this.dom.classList.contains('ThumbSlider--fallback');
+    if (isFallback) {
+      this.markRowHasThumb();
+      return;
     }
 
-    // Fallback variants are static – no autoplay, no lazy loading needed.
-    const isFallback = this.dom.classList.contains('ThumbSlider--fallback');
-    if (!isFallback) {
-      this.setupIntersectionObserver(this.dom);
-    }
+    // Image slider: starts hidden (`--probing`) and is revealed only once the
+    // FIRST image has actually loaded, so a broken / slow-failing image never
+    // flashes a loading box. Observe the VISIBLE row rather than the hidden
+    // slider (an IntersectionObserver can't see a display:none element), so
+    // lazy-loading near the viewport still works. `has-ThumbSlider` is added on
+    // reveal — until then the row legitimately has no thumb to coordinate with.
+    const observeTarget = this.dom.closest('.DiscussionListItem-content') || this.dom.parentElement || this.dom;
+    this.setupIntersectionObserver(observeTarget);
   }
 
   onbeforeupdate() {
@@ -115,6 +144,8 @@ export default class ThumbSlider extends Component {
 
   setupIntersectionObserver(element) {
     if (typeof IntersectionObserver === 'undefined') {
+      this.isVisible = true;
+      this.firstLoadStarted = true;
       this.loadFirstImage();
       return;
     }
@@ -123,10 +154,11 @@ export default class ThumbSlider extends Component {
       (entries) => {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
-            if (this.loadedImages.size === 0) {
+            this.isVisible = true;
+            if (!this.firstLoadStarted) {
+              this.firstLoadStarted = true;
               this.loadFirstImage();
             }
-            this.isVisible = true;
             this.startAutoplay();
           } else {
             this.isVisible = false;
@@ -150,18 +182,24 @@ export default class ThumbSlider extends Component {
 
     const url = this.images[0];
 
-    // Already loaded earlier this session — show instantly from the browser
-    // cache, skipping the probe Image() and the loading fade.
+    // Already loaded earlier this session — reveal instantly from the browser
+    // cache, skipping the probe Image().
     if (loadedUrlCache.has(url)) {
       this.loadedImages.add(0);
       imgEl.src = url;
-      this.dom.classList.remove('ThumbSlider--loading');
+      this.reveal();
+      if (this.isVisible) this.startAutoplay();
       if (this.images.length > 1) {
         this.preloadImage(1);
       }
       return;
     }
 
+    // Probe the first image INVISIBLY. The slider stays hidden (`--probing`) and
+    // shows nothing — no box, no spinner, no reserved height — until this
+    // resolves. On success we reveal it; on failure it is either never shown
+    // (mode 'none') or swapped for the fallback. This is what stops a broken or
+    // slow-failing image from flashing an empty loading box on refresh / search.
     const img = new Image();
     img.onload = () => {
       // The slider may have been removed (list re-rendered) while loading.
@@ -169,44 +207,65 @@ export default class ThumbSlider extends Component {
       loadedUrlCache.add(url);
       this.loadedImages.add(0);
       imgEl.src = url;
-      this.dom.classList.remove('ThumbSlider--loading');
-
+      this.reveal();
+      if (this.isVisible) this.startAutoplay();
       if (this.images.length > 1) {
         this.preloadImage(1);
       }
     };
     img.onerror = () => {
+      // Remember the failure so a later remount (refresh / live search) drops
+      // this URL up front (oninit filter) instead of re-probing it.
+      failedUrlCache.add(url);
       this.handleImageLoadFailure();
     };
     img.src = url;
   }
 
+  // Reveal the slider once its first image is ready: drop the hidden `--probing`
+  // state, show the card (`--ready`), and signal coordinating extensions.
+  reveal() {
+    if (!this.dom || this.revealed) return;
+    this.revealed = true;
+    this.dom.classList.remove('ThumbSlider--probing');
+    this.dom.classList.add('ThumbSlider--ready');
+    this.markRowHasThumb();
+  }
+
+  // Signal coordinating extensions (e.g. homepage-blocks) that this row now has a
+  // visible thumbnail. Called on reveal / fallback — never while still probing.
+  markRowHasThumb() {
+    const contentEl = this.dom && this.dom.closest('.DiscussionListItem-content');
+    if (contentEl) contentEl.classList.add('has-ThumbSlider');
+  }
+
   handleImageLoadFailure() {
     if (!this.dom) return;
+
+    this.stopAutoplay();
 
     const mode = this.attrs.fallbackMode;
     const url = this.attrs.fallbackUrl;
 
-    // Stop autoplay - we're switching to a static fallback
-    this.stopAutoplay();
-    this.dom.classList.remove('ThumbSlider--loading');
-
     if (mode === 'custom' && url) {
+      // Reveal a static custom fallback in place of the failed image.
       this.replaceTrackWithFallback(
         '<img class="ThumbSlider__img" src="' + this.escapeAttr(url) + '" alt="" decoding="async" />'
       );
+      this.dom.classList.remove('ThumbSlider--probing');
       this.dom.classList.add('ThumbSlider--fallback', 'ThumbSlider--fallback-custom');
+      this.markRowHasThumb();
     } else if (mode === 'default') {
       this.replaceTrackWithFallback('<div class="ThumbSlider__placeholder" aria-hidden="true"></div>');
+      this.dom.classList.remove('ThumbSlider--probing');
       this.dom.classList.add('ThumbSlider--fallback', 'ThumbSlider--fallback-default');
-    } else {
-      // mode === 'none': hide entire slider and restore default content layout
-      this.dom.style.display = 'none';
-      const contentEl = this.dom.closest('.DiscussionListItem-content');
-      if (contentEl) contentEl.classList.remove('has-ThumbSlider');
+      this.markRowHasThumb();
     }
+    // mode === 'none': the slider was never revealed — it simply stays hidden
+    // (`--probing` keeps it display:none, taking no space). No `has-ThumbSlider`
+    // was ever added, so the row already renders thumb-less. Nothing to do.
 
-    // Hide counter (single fallback slide doesn't need it)
+    // Hide counter (single fallback slide doesn't need it).
     const counter = this.dom.querySelector('.ThumbSlider__counter');
     if (counter) counter.style.display = 'none';
   }
@@ -227,6 +286,9 @@ export default class ThumbSlider extends Component {
     if (index >= this.images.length || this.loadedImages.has(index)) return;
 
     const url = this.images[index];
+
+    // Skip a slide already known to be broken this session — don't re-probe it.
+    if (failedUrlCache.has(url)) return;
 
     // Push the resolved URL into the matching slide. Guards `this.dom` because
     // the slider can be unmounted (live search re-render) while the image is
@@ -252,11 +314,16 @@ export default class ThumbSlider extends Component {
       loadedUrlCache.add(url);
       apply();
     };
+    img.onerror = () => {
+      // Record the failure (the slide keeps no src, so it stays blank rather
+      // than showing a broken-image icon) so a remount drops it via oninit.
+      failedUrlCache.add(url);
+    };
     img.src = url;
   }
 
   startAutoplay() {
-    if (this.autoplayTimer || this.images.length <= 1 || !this.dom) return;
+    if (this.autoplayTimer || this.images.length <= 1 || !this.dom || !this.revealed) return;
 
     const speed = this.attrs.autoplaySpeed || 1200;
 
